@@ -10,26 +10,14 @@ int main(int argc, char* argv[]) {
 		usage();
 		return -1;
 	}
-	int tcp_port;
-	int ssl_port;
+	uint16_t tcp_port;
+	uint16_t ssl_port;
 	str_to_uint16(argv[1], &tcp_port);
 	str_to_uint16(argv[2], &ssl_port);
-
-	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-        if (sockfd == -1) {
-                perror("socket failed");
-                return -1;
-        }
-
-        int optval = 1;
-        setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR,  &optval , sizeof(int));
-        struct sockaddr_in addr;
-        addr.sin_family = AF_INET;
-        addr.sin_port = htons(port);
-        addr.sin_addr.s_addr = htonl(INADDR_ANY);
-        memset(addr.sin_zero, 0, sizeof(addr.sin_zero));
-
-        int res = bind(sockfd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(struct sockaddr));
+	
+	int sockfd = setup_socket(tcp_port, INADDR_ANY, SERVER);
+	
+	int res = bind(sockfd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(struct sockaddr));
         if (res == -1) {
                 perror("bind failed");
                 return -1;
@@ -50,12 +38,13 @@ int main(int argc, char* argv[]) {
 			perror("Error on accpet");
 			break;
 		}
-		thread t1(client_recv, sockfd);
-		thread t2(client_send, sockfd);
+		thread t1(client_to_web, sockfd);
+		thread t2(web_to_client, sockfd);
 
 		t1.detach();
 		t2.join();
-		print("!");
+		printf("!");
 	}
+	close(sockfd);
 	return 0;
 }
